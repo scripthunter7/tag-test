@@ -1,0 +1,33 @@
+name: Tag test
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+
+            // get tag message, if any
+            const tagMessage = await github.rest.git.getRef({
+              owner: process.env.GITHUB_REPOSITORY_OWNER,
+              repo: process.env.GITHUB_REPOSITORY,
+              ref: `refs/tags/${tag}`,
+            });
+
+            console.log(tagMessage);
+
+            const isPreRelease = tagMessage.data.object.message === 'prerelease';
+
+            core.exportVariable('TAG_NAME', tag);
+            core.exportVariable('IS_PRERELEASE', isPreRelease.toString());
