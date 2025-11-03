@@ -16,18 +16,33 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+            const {github, context, core} = require('@actions/github');
 
-            // get tag message, if any
-            const tagMessage = await github.rest.git.getRef({
-              owner: process.env.GITHUB_REPOSITORY_OWNER,
-              repo: process.env.GITHUB_REPOSITORY,
-              ref: `refs/tags/${tag}`,
+            const tag = context.ref.replace('refs/tags/', '');
+            
+            const refRes = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${tag}`,
             });
 
-            console.log(tagMessage);
+            const { object } = refRes.data; // { sha, type, url }
 
-            const isPreRelease = tagMessage.data.object.message === 'prerelease';
+            let tagMessage = '';
+            if (object.type === 'tag') {
+              const tagObj = await github.rest.git.getTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_sha: object.sha,
+              });
+              tagMessage = (tagObj.data.message || '').trim();
+            } else {
+              // Lightweight tag
+              tagMessage = '';
+            }
+
+            const isPreRelease = tagMessage.toLowerCase() === 'prerelease' || tagMessage.toLowerCase() === 'preview';
 
             core.exportVariable('TAG_NAME', tag);
-            core.exportVariable('IS_PRERELEASE', isPreRelease.toString());
+            core.exportVariable('IS_PRERELEASE', String(isPreRelease));
+            core.info(`TAG_NAME=${tag}, IS_PRERELEASE=${isPreRelease}, type=${object.type}, msg="${tagMessage}"`);
