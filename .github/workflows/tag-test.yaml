@@ -16,8 +16,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const {github, context, core} = require('@actions/github');
-
             const tag = context.ref.replace('refs/tags/', '');
             
             const refRes = await github.rest.git.getRef({
